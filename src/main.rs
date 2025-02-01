@@ -1,39 +1,30 @@
-use axum::{
-    routing::{get, post},
-    extract::State,
-    response::{Html, IntoResponse},
-    Router,
-};
-use sqlx::SqlitePool;
-use std::{net::SocketAddr, sync::Arc};
-use tower_http::services::ServeDir;
+use axum::Router;
+use sqlx::sqlite::SqlitePoolOptions;
+use std::sync::Arc;
+use tokio::net::TcpListener;
 
 mod routes;
+use routes::create_router;
+
+type Db = Arc<sqlx::SqlitePool>;
 
 #[tokio::main]
 async fn main() {
-    // Connect to SQLite database
-    let pool = SqlitePool::connect("sqlite:urls.db").await.unwrap();
-    let db = Arc::new(pool);
-
-    // Create Axum app with routes and static file serving
-    let app = Router::new()
-        .nest_service("/static", ServeDir::new("static")) // Serve CSS & JS
-        .route("/", get(serve_index)) // Serve the frontend
-        .merge(routes::create_router(db)); // Include API routes
-
-    // Define server address
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("\ud83d\ude80 Server running at http://{}", addr);
-
-    // Start Axum server
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    let database_url = "sqlite://urls.db";
+    let pool = SqlitePoolOptions::new()
+        .connect(database_url)
         .await
-        .unwrap();
-}
+        .expect("Failed to connect to database");
+    
+    sqlx::query("CREATE TABLE IF NOT EXISTS urls (short_code TEXT PRIMARY KEY, long_url TEXT UNIQUE)")
+        .execute(&pool)
+        .await
+        .expect("Failed to create table");
+    
+    let db = Arc::new(pool);
+    let app = create_router(db);
 
-// Serve the HTML frontend
-async fn serve_index() -> impl IntoResponse {
-    Html(std::fs::read_to_string("templates/index.html").unwrap())
+    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    println!("Server running on http://127.0.0.1:3000");
+    axum::serve(listener, app).await.unwrap();
 }
