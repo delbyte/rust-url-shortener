@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use rand::Rng;
-
-type Db = Arc<SqlitePool>;
+use crate::db::Db;
 
 #[derive(Deserialize)]
 struct ShortenRequest {
