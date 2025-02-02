@@ -1,6 +1,8 @@
 use axum::{
+    response::{IntoResponse, Response, Redirect, Html},
     routing::{get, post},
-    Router, extract::{Path, Json, State}
+    Router, extract::{Path, Json, State},
+    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -18,38 +20,65 @@ struct ShortenResponse {
     short_url: String,
 }
 
-// Initialize Router with SQLite
-pub fn create_router(db: Db) -> Router {
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+}
+
+pub fn create_router(db: Arc<SqlitePool>) -> Router {
     Router::new()
+        .route("/", get(serve_index))
         .route("/shorten", post(shorten_url))
         .route("/:short_code", get(redirect_url))
         .with_state(db)
 }
 
-// Shorten URL and store in SQLite
-async fn shorten_url(Json(payload): Json<ShortenRequest>, State(db): State<Db>) -> Json<ShortenResponse> {
-    // Check if the URL already exists
-    if let Some((existing_code,)) = sqlx::query_as::<_, (String,)>("SELECT short_code FROM urls WHERE long_url = ?")
+async fn serve_index() -> impl IntoResponse {
+    Html(include_str!("../static/index.html"))
+}
+
+async fn shorten_url(
+    State(db): State<Arc<SqlitePool>>,
+    Json(payload): Json<ShortenRequest>,
+) -> Result<Json<ShortenResponse>, (StatusCode, Json<ErrorResponse>)> {
+    if !payload.long_url.starts_with("http://") && !payload.long_url.starts_with("https://") {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "URL must start with http:// or https://".to_string(),
+            }),
+        ));
+    }
+
+    let existing_code = sqlx::query_as::<_, (String,)>("SELECT short_code FROM urls WHERE long_url = ?")
         .bind(&payload.long_url)
         .fetch_optional(&*db)
         .await
-        .unwrap()
-    {
-        return Json(ShortenResponse {
-            short_url: format!("http://127.0.0.1:3000/{}", existing_code),
-        });
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        ))?;
+
+    if let Some((code,)) = existing_code {
+        return Ok(Json(ShortenResponse {
+            short_url: format!("http://127.0.0.1:3000/{}", code),
+        }));
     }
 
     let mut short_code = generate_short_code();
 
-    // Ensure uniqueness by checking for collisions
     while sqlx::query_as::<_, (String,)>("SELECT short_code FROM urls WHERE short_code = ?")
         .bind(&short_code)
         .fetch_optional(&*db)
         .await
-        .unwrap()
-        .is_some()
-    {
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        ))?.is_some() {
         short_code = generate_short_code();
     }
 
@@ -58,28 +87,44 @@ async fn shorten_url(Json(payload): Json<ShortenRequest>, State(db): State<Db>) 
         .bind(&payload.long_url)
         .execute(&*db)
         .await
-        .unwrap();
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        ))?;
 
-    Json(ShortenResponse {
+    Ok(Json(ShortenResponse {
         short_url: format!("http://127.0.0.1:3000/{}", short_code),
-    })
+    }))
 }
 
-// Redirect handler
-async fn redirect_url(Path(short_code): Path<String>, State(db): State<Db>) -> String {
+async fn redirect_url(
+    State(db): State<Arc<SqlitePool>>,
+    Path(short_code): Path<String>,
+) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
     let result = sqlx::query_as::<_, (String,)>("SELECT long_url FROM urls WHERE short_code = ?")
         .bind(&short_code)
         .fetch_optional(&*db)
         .await
-        .unwrap();
+        .map_err(|e| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: format!("Database error: {}", e),
+            }),
+        ))?;
 
     match result {
-        Some((long_url,)) => format!("Redirecting to: {}", long_url),
-        None => "Short code not found!".to_string(),
+        Some((long_url,)) => Ok(Redirect::permanent(&long_url).into_response()),
+        None => Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Short code not found".to_string(),
+            }),
+        )),
     }
 }
 
-// Generate a random alphanumeric short code
 fn generate_short_code() -> String {
     let charset: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::thread_rng();
