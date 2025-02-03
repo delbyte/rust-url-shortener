@@ -4,14 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>URL Shortener</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="static/styles.css">
 </head>
 <body>
-    <h1>URL Shortener</h1>
-    <input type="text" id="longUrl" placeholder="Enter long URL">
-    <button onclick="shortenUrl()">Shorten</button>
-    <p id="shortUrl"></p>
+    <div class="container">
+        <h1>URL Shortener</h1>
+        <input 
+            type="text" 
+            id="longUrl" 
+            placeholder="Enter your URL to shorten..."
+        >
+        <button onclick="shortenUrl()">Shorten URL</button>
 
-    <script src="/static/script.js"></script>
+        <div id="result" class="hidden">
+            <p id="shortUrl"></p>
+            <img id="qrCode" class="hidden" alt="QR Code">
+        </div>
+    </div>
+
+    <script src="static/script.js"></script>
 </body>
 </html>
