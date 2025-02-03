@@ -16,7 +16,7 @@ async fn main() {
         .merge(routes::create_router(Arc::clone(&db)))
         .nest_service("/static", ServeDir::new("static"));
 
-    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
-    println!("Server running on http://127.0.0.1:3000");
+    let listener = TcpListener::bind("https://flashurl-2u1k.onrender.com").await.unwrap();
+    println!("Server running on https://flashurl-2u1k.onrender.com");
     axum::serve(listener, app).await.unwrap();
 }
