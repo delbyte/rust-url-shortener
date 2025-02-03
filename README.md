@@ -1,6 +1,7 @@
 # Rust URL Shortener
 
 This is a URL shortener built with Rust and Axum for the BlazinglyFast Hackathon. It provides functionality to shorten URLs and generate QR codes for them. It's deployed with Render, on a free plan. Expect longer wait times after inactivity. 
+
 You can visit the site at: https://flashurl-2u1k.onrender.com
 
 ## Features
