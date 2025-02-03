@@ -36,7 +36,7 @@ async function shortenUrl() {
         resultContainer.classList.remove("hidden");
 
         // Generate and display QR code for the long URL
-        generateQRCode(longUrl); // Use the long URL here
+        generateQRCode(longUrl); 
 
     } catch (error) {
         resultElement.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
@@ -56,9 +56,9 @@ async function generateQRCode(url) {
             throw new Error("Failed to generate QR code");
         }
 
-        const data = await qrResponse.json(); // Expecting base64 image string
-        console.log('QR Code Data:', data);  // Check the data logged in the console
-        qrImage.src = data;  // Set the source to the base64 image string
+        const data = await qrResponse.json(); 
+        console.log('QR Code Data:', data);  
+        qrImage.src = data;  
         qrImage.classList.remove("hidden");
     } catch (error) {
         console.error("QR Code Error:", error);
