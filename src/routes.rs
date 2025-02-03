@@ -62,7 +62,7 @@ async fn shorten_url(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: format!("Database error: {}", e) })))?;
 
     if let Some((code,)) = existing_code {
-        return Ok(Json(ShortenResponse { short_url: format!("http://0.0.0.0:3000/{}", code) }));  // Updated to 0.0.0.0
+        return Ok(Json(ShortenResponse { short_url: format!("https://flashurl-2u1k.onrender.com/{}", code) }));  // Use your public URL here
     }
 
     let mut short_code = generate_short_code();
@@ -82,8 +82,9 @@ async fn shorten_url(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: format!("Database error: {}", e) })))?;
 
-    Ok(Json(ShortenResponse { short_url: format!("http://0.0.0.0:3000/{}", short_code) }))  // Updated to 0.0.0.0
+    Ok(Json(ShortenResponse { short_url: format!("https://flashurl-2u1k.onrender.com/{}", short_code) }))  // Use your public URL here
 }
+
 
 
 async fn redirect_url(
