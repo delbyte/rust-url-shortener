@@ -62,7 +62,7 @@ async fn shorten_url(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: format!("Database error: {}", e) })))?;
 
     if let Some((code,)) = existing_code {
-        return Ok(Json(ShortenResponse { short_url: format!("https://flashurl-2u1k.onrender.com/{}", code) }));
+        return Ok(Json(ShortenResponse { short_url: format!("http://0.0.0.0:3000/{}", code) }));  // Updated to 0.0.0.0
     }
 
     let mut short_code = generate_short_code();
@@ -82,8 +82,9 @@ async fn shorten_url(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: format!("Database error: {}", e) })))?;
 
-    Ok(Json(ShortenResponse { short_url: format!("https://flashurl-2u1k.onrender.com/{}", short_code) }))
+    Ok(Json(ShortenResponse { short_url: format!("http://0.0.0.0:3000/{}", short_code) }))  // Updated to 0.0.0.0
 }
+
 
 async fn redirect_url(
     State(db): State<Arc<SqlitePool>>,
@@ -107,7 +108,7 @@ async fn generate_qr(Query(params): Query<QrRequest>) -> Result<Json<String>, (S
         .map_err(|_| (StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Failed to generate QR code".to_string() })))?;
 
     let original_size = qr.size();
-    let scale_factor = 10; // Increase scale for higher resolution (higher values = higher resolution)
+    let scale_factor = 10; // Increase scale for higher resolution
     let size = original_size * scale_factor; // Scaling QR code size for higher resolution
     let mut img = ImageBuffer::<Luma<u8>, Vec<u8>>::new(size as u32, size as u32);
 
